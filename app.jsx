@@ -1,7 +1,6 @@
 import xs from 'xstream'
-import sampleCombine from 'xstream/extra/sampleCombine'
-import { inputEvents, newId, classes } from './lib/utils'
-import { component } from 'cyclejs-component'
+import { classes } from './lib/utils'
+import { component, processForm } from 'sygnal'
 import todos from './components/todos'
 
 
@@ -33,17 +32,27 @@ export default component({
   children: { todos },
 
   model: {
+    // change which todos are shown based on currently selected option (All, Active, Completed)
     VISIBILITY: (state, visibility) => ({
       ...state,
       visibility,
       todos: state.todos.map(todo => ({ ...todo, hidden: !FILTER_LIST[visibility](todo) }))
     }),
 
+    // add todos fetched from local storage to state
     FROM_STORE: (state, data) => ({ ...state, todos: data }),
 
     NEW_TODO: (state, data, next) => {
       // calculate next id
-      const nextId = newId(state.todos)
+      // - must be unique even after a browser page refresh
+      // - using timestamp for simplicity, but could be UUID or something else
+      const nextId = Date.now()
+
+      const newTodo = {
+        id: nextId,
+        title: data,
+        completed: false
+      }
 
       // send a new action to clear the new todo field
       next('CLEAR_FORM')
@@ -51,14 +60,7 @@ export default component({
       // add the new todo to the state
       return {
         ...state,
-        todos: [
-          ...state.todos,
-          {
-            id: nextId,
-            title: data,
-            completed: false
-          }
-        ]
+        todos: [ ...state.todos, newTodo ]
       }
     },
 
@@ -93,19 +95,16 @@ export default component({
 
     const toggleAll$       = DOM.select('.toggle-all').events('click')
     const clearCompleted$  = DOM.select('.clear-completed').events('click')
-    const input$           = DOM.select('.new-todo')
 
-    // get events from the input field
-    //  - the inputEvents helper returns common events and automatically returns the current value
-    const { value$, enter$ } = inputEvents(input$)
+    // get the form containing the new todo input
+    const newTodoForm      = DOM.select('.new-todo-form')
 
-    // create a stream of titles whenever a new todo is submitted
-    // - wait until the 'enter' key is pressed
-    // - map the event stream to just the 'title' (current value of the input)
-    // - filter out blank titles
-    const newTodo$ = enter$.compose(sampleCombine(value$))
-                           .map(([_, title]) => title.trim())
-                           .filter(title => title !== '')
+    // use Sygnal's processForm() helper to grab 'submit' events (user hits enter)
+    // extract the new todo's title from the form values, and trim any white space
+    // filter out blank titles
+    const newTodo$ = processForm(newTodoForm, { events: 'submit' })
+      .map(values => values['new-todo'].trim())
+      .filter(title => title !== '')
 
     // add routes to handle filtering based on browser path
     const route$ = xs.fromArray(Object.keys(FILTER_LIST))
@@ -138,7 +137,7 @@ export default component({
       <section className="todoapp">
         <header className="header">
           <h1>todos</h1>
-          <input className="new-todo" autofocus autocomplete="off" placeholder="What needs to be done?" />
+          <form className='new-todo-form'><input className="new-todo" name="new-todo" autofocus autocomplete="off" placeholder="What needs to be done?" /></form>
         </header>
 
         { (total > 0) &&
@@ -154,7 +153,7 @@ export default component({
         { (total > 0) &&
           <footer className="footer">
             <span className="todo-count">
-              <strong>{ remaining }</strong> { (remaining === 1) ? 'item' : 'items' } left
+              <strong>{ remaining } </strong> { (remaining === 1) ? 'item' : 'items' } left
             </span>
             <ul className="filters">
               { links.map(renderLink) }

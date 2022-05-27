@@ -1,6 +1,6 @@
 import xs from 'xstream'
 import sampleCombine from 'xstream/extra/sampleCombine'
-import { component, collection } from 'cyclejs-component'
+import { component, collection, processForm } from 'sygnal'
 import { inputEvents, classes } from '../lib/utils'
 
 
@@ -87,7 +87,7 @@ const todo = component({
           <label>{ title }</label>
           <button className="destroy" />
         </div>
-        <input className="edit" type="text" value={ title } />
+        <form className="edit-form"><input className="edit" type="text" value={ title } /></form>
       </li>
     )
   }
