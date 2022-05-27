@@ -10,8 +10,7 @@
     "director": "^1.2.8",
     "sygnal": "^1.0.1",
     "todomvc-app-css": "^2.2.0",
-    "todomvc-common": "^1.0.5",
-    "xstream": "11.0.0"
+    "todomvc-common": "^1.0.5"
   },
   "scripts": {
     "dev": "vite",

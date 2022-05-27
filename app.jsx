@@ -1,6 +1,4 @@
-import xs from 'xstream'
-import { classes } from './lib/utils'
-import { component, processForm } from 'sygnal'
+import { component, processForm, classes, xs } from 'sygnal'
 import todos from './components/todos'
 
 
