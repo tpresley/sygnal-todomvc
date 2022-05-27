@@ -7,5 +7,6 @@ export default defineConfig({
    esbuild: {
      jsxFactory: `Snabbdom.createElement`,
      jsxInject: `import Snabbdom from 'snabbdom-pragma'`,
-   }
+   },
+   base: ""
 });

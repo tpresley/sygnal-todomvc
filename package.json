@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "devDependencies": {
+    "gh-pages": "^4.0.0",
     "snabbdom-pragma": "^2.8.0",
     "vite": "^2.9.9"
   },
