@@ -4,12 +4,11 @@
   "private": true,
   "devDependencies": {
     "gh-pages": "^4.0.0",
-    "snabbdom-pragma": "^2.8.0",
     "vite": "^2.9.9"
   },
   "dependencies": {
     "director": "^1.2.8",
-    "sygnal": "^1.0.1",
+    "sygnal": "^1.2.0",
     "todomvc-app-css": "^2.2.0",
     "todomvc-common": "^1.0.5"
   },

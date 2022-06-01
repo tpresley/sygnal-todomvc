@@ -5,8 +5,8 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
    esbuild: {
-     jsxFactory: `Snabbdom.createElement`,
-     jsxInject: `import Snabbdom from 'snabbdom-pragma'`,
+     jsxFactory: `jsx`,
+     jsxInject: `import { jsx } from 'sygnal/jsx'`,
    },
    base: ""
 });
