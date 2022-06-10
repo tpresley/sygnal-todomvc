@@ -1,5 +1,5 @@
 import { component, processForm, classes, xs } from 'sygnal'
-import todos from './components/todos'
+import todo from './components/todos'
 
 
 
@@ -26,8 +26,6 @@ export default component({
     completed: (state) => state.todos.filter(todo => todo.completed).length,
     allDone:   (state) => state.todos.every(todo => todo.completed),
   },
-
-  children: { todos },
 
   model: {
     // change which todos are shown based on currently selected option (All, Active, Completed)
@@ -123,7 +121,7 @@ export default component({
     }
   },
 
-  view: ({ state, todos }) => {
+  view: ({ state }) => {
     const { visibility, total, remaining, completed, allDone } = state
 
     const links =  Object.keys(FILTER_LIST)
@@ -143,7 +141,7 @@ export default component({
             <input id="toggle-all" className="toggle-all" type="checkbox" checked={ allDone } />
             <label for="toggle-all">Mark all as complete</label>
             <ul className="todo-list">
-              { todos }
+              <collection of={ todo } for="todos" />
             </ul>
           </section>
         }
@@ -151,7 +149,7 @@ export default component({
         { (total > 0) &&
           <footer className="footer">
             <span className="todo-count">
-              <strong>{ remaining } </strong> { (remaining === 1) ? 'item' : 'items' } left
+              <strong>{ remaining }</strong> { (remaining === 1) ? 'item' : 'items' } left
             </span>
             <ul className="filters">
               { links.map(renderLink) }

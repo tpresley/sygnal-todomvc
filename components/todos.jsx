@@ -1,9 +1,8 @@
-import sampleCombine from 'xstream/extra/sampleCombine'
-import { component, collection, classes, xs } from 'sygnal'
+import { component, classes, xs, sampleCombine } from 'sygnal'
 import { inputEvents } from '../lib/utils'
 
 
-const todo = component({
+export default component({
   name: 'TODO',
 
   model: {
@@ -90,6 +89,3 @@ const todo = component({
   }
 
 })
-
-
-export default collection(todo, 'todos')
