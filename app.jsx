@@ -141,7 +141,7 @@ export default component({
             <input id="toggle-all" className="toggle-all" type="checkbox" checked={ allDone } />
             <label for="toggle-all">Mark all as complete</label>
             <ul className="todo-list">
-              <collection of={ todo } for="todos" />
+              <collection of={ todo } from="todos" />
             </ul>
           </section>
         }
