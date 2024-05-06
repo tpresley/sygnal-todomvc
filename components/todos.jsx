@@ -29,6 +29,10 @@ TODO.calculated = {
 TODO.model = {
 
   TOGGLE:     (state) => ({ ...state, completed: !state.completed }),
+  
+  // for components used in a Sygnal collection element, setting the state
+  // to undefined will delete that instance of the component and remove it
+  // from the array in state that the collection is based on
   DESTROY:    (state) => undefined,
 
   EDIT_START: (state, data, next) => {
@@ -56,6 +60,9 @@ TODO.model = {
     return { ...state, title: state.cachedTitle, editing: false, cachedTitle: '' }
   },
 
+  // it's a subjective matter whether DOM actions like setting focus or input values are 
+  // side-effects that need to be isolated from components, but we are taking the strictest 
+  // view here and using a DOMFX driver sink to handle them
   SET_EDIT_VALUE:   { DOMFX: (state, data) => ({ type: 'SET_VALUE', data }) },
   FOCUS_EDIT_FIELD: { DOMFX: (state, data) => ({ type: 'FOCUS', data }) },
 
