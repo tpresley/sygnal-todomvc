@@ -11,15 +11,15 @@
   "dependencies": {
     "@cycle/run": "^5.7.0",
     "director": "^1.2.8",
-    "sygnal": "^3.0.1",
+    "sygnal": "^4.0.1",
     "todomvc-app-css": "^2.2.0",
     "todomvc-common": "^1.0.5"
   },
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "tsc && vite build",
     "preview": "vite preview",
     "gh-pages": "gh-pages -d dist -b gh-pages",
-    "deploy": "npm run build && npm run gh-pages"
+    "deploy": "tsc && npm run build && npm run gh-pages"
   }
 }

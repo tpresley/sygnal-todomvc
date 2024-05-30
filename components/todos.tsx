@@ -1,8 +1,10 @@
 import { classes, xs, sampleCombine } from 'sygnal'
+import type { Component } from 'sygnal/types'
+import type { Todo, AppDrivers, TodoActions, TodoCalculated } from '../types'
 import { inputEvents } from '../lib/utils'
 
 
-export default function TODO({ state }) {
+const TODO: Component<Todo, {}, AppDrivers, TodoActions, TodoCalculated> = (_props, state) => {
   const { id, completed, editing, title } = state
   // calculate class for todo
   const classNames = classes('todo', 'todo-' + id, { completed, editing })
@@ -33,9 +35,9 @@ TODO.model = {
   // for components used in a Sygnal collection element, setting the state
   // to undefined will delete that instance of the component and remove it
   // from the array in state that the collection is based on
-  DESTROY:    (state) => undefined,
+  DESTROY:    () => undefined,
 
-  EDIT_START: (state, data, next) => {
+  EDIT_START: (state, _data, next) => {
     const selector = state.inputSelector
     // update the value of the input field to the current todo title
     next('SET_EDIT_VALUE',   { selector, value: state.title })
@@ -52,27 +54,27 @@ TODO.model = {
     return { ...state, title: data, editing: false, cachedTitle: '' }
   },
 
-  EDIT_CANCEL: (state, data, next) => {
+  EDIT_CANCEL: (state, _data, next) => {
     const selector = state.inputSelector
     // set the value of the edit input field back to the original title
-    next('SET_EDIT_VALUE', { selector, value: state.cachedTitle })
+    next('SET_EDIT_VALUE', { selector, value: state.cachedTitle || '' })
     // set the todo back to the pre-edit value and remove the editing flag
-    return { ...state, title: state.cachedTitle, editing: false, cachedTitle: '' }
+    return { ...state, title: state.cachedTitle || '', editing: false, cachedTitle: '' }
   },
 
   // it's a subjective matter whether DOM actions like setting focus or input values are 
   // side-effects that need to be isolated from components, but we are taking the strictest 
   // view here and using a DOMFX driver sink to handle them
-  SET_EDIT_VALUE:   { DOMFX: (state, data) => ({ type: 'SET_VALUE', data }) },
-  FOCUS_EDIT_FIELD: { DOMFX: (state, data) => ({ type: 'FOCUS', data }) },
+  SET_EDIT_VALUE:   { DOMFX: (_state, data) => ({ type: 'SET_VALUE', data }) },
+  FOCUS_EDIT_FIELD: { DOMFX: (_state, data) => ({ type: 'FOCUS', data }) },
 
 }
 
 TODO.intent = ({ DOM }) => {
   // collect DOM events and elements
-  const toggle$   = DOM.select('.toggle').events('click')
-  const label$    = DOM.select('.todo label').events('dblclick')
-  const destroy$  = DOM.select('.destroy').events('click')
+  const toggle$   = DOM.select('.toggle').events('click').mapTo(null)
+  const label$    = DOM.select('.todo label').events('dblclick').mapTo(null)
+  const destroy$  = DOM.select('.destroy').events('click').mapTo(null)
   const input$    = DOM.select('.edit')
 
   // get events from the input field
@@ -86,10 +88,12 @@ TODO.intent = ({ DOM }) => {
 
 
   return {
-    TOGGLE:      toggle$,
-    DESTROY:     destroy$,
-    EDIT_START:  label$,
+    TOGGLE:      toggle$.mapTo(null),
+    DESTROY:     destroy$.mapTo(null),
+    EDIT_START:  label$.mapTo(null),
     EDIT_DONE:   doneEditing$,
-    EDIT_CANCEL: escape$,
+    EDIT_CANCEL: escape$.mapTo(null),
   }
 }
+
+export default TODO

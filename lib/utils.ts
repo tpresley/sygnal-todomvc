@@ -1,4 +1,5 @@
 import { xs } from 'sygnal'
+import type { MainDOMSource } from 'sygnal'
 
 /**
  * helper to get common events from an input field
@@ -7,7 +8,7 @@ import { xs } from 'sygnal'
  * @param {String} initialValue initial value to emit on the special `value$` stream
  * @return {Object} collection of event streams ready for mapping to actions
  */
-export function inputEvents (el$, initialValue='') {
+export function inputEvents (el$: MainDOMSource, initialValue: any = '') {
   const input$ = el$.events('input')
   const keydown$  = el$.events('keydown')
   const keyup$    = el$.events('keyup')
@@ -15,7 +16,7 @@ export function inputEvents (el$, initialValue='') {
   const focus$    = el$.events('focus')
   const blur$     = el$.events('blur')
   const value$    = xs.merge(focus$, input$)
-    .map(e => e.target.value)
+    .map(e => (e.target as HTMLInputElement).value)
     .startWith(initialValue)
     .remember()
 
@@ -31,5 +32,6 @@ export function inputEvents (el$, initialValue='') {
     blur$,
     keydown$,
     keyup$,
+    change$
   }
 }

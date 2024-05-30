@@ -1,27 +1,34 @@
-import { processForm, classes, xs, delay } from 'sygnal'
+import { Collection, processForm, classes } from 'sygnal'
+import type { RootComponent } from 'sygnal/types'
+import type { Todo, Filters, AppState, AppDrivers, AppActions, AppCalculated } from './types'
 import todo from './components/todos'
 
 // filter functions for each visibility option
 // - the key names will also get used as names in the UI
-const FILTER_LIST = {
-  all:       todo => true,
-  active:    todo => !todo.completed,
-  completed: todo => todo.completed
+const FILTER_LIST: { [key in Filters]: (todo: Todo) => boolean } = {
+  all:       (_todo: Todo) => true,
+  active:    (todo:  Todo) => !todo.completed,
+  completed: (todo:  Todo) => !!todo.completed
 }
 
-export default function APP ({ state }) {
+const APP: RootComponent<
+  AppState,
+  AppDrivers,
+  AppActions,
+  AppCalculated
+> = (_props, state) => {
   const { visibility, total, remaining, completed, allDone } = state
 
   // use the key names of the filter functions to make links to change the view mode
   const links = Object.keys(FILTER_LIST)
 
-  const capitalize = word => word.charAt(0).toUpperCase() + word.slice(1)
+  const capitalize = (word: string): string => word.charAt(0).toUpperCase() + word.slice(1)
   
   // this could be a standalone component, but when no state or other component 
   // functionality is needed then it makes sense to just keep it inline
   // - there is a small performance benefit to keeping it inline, but not enough
   //   to avoid creating components when it makes sense to do so
-  const renderLink = link => <li><a href={ `#/${link}` } className={ classes({ selected: visibility == link }) }>{ capitalize(link) }</a></li>
+  const renderLink = (link: string): JSX.Element => <li><a href={ `#/${link}` } className={ classes({ selected: visibility == link }) }>{ capitalize(link) }</a></li>
 
   return (
     <section className="todoapp">
@@ -35,9 +42,9 @@ export default function APP ({ state }) {
           <input id="toggle-all" className="toggle-all" type="checkbox" checked={ allDone } />
           <label for="toggle-all">Mark all as complete</label>
           <ul className="todo-list">
-            {/* use Syngal's built-in collection element to create multiple todos from the 'todos' 
+            {/* use Sygnal's built-in collection element to create multiple todos from the 'todos' 
                 array in state and filter the array based on the currently selected visibility */}
-            <collection of={ todo } from="todos" filter={ FILTER_LIST[visibility] } />
+            <Collection of={ todo } from="todos" filter={ FILTER_LIST[visibility] } />
           </ul>
         </section>
       }
@@ -78,8 +85,8 @@ APP.model = {
   // the special BOOTSTRAP action is called once when a component is instantiated
   // - this is similar to onMount or useEffect(() => {...}, []) in React
   BOOTSTRAP: {
-    LOG: (state, data, next) => {
-      Object.keys(FILTER_LIST).forEach(filter => next('ADD_ROUTE', filter))
+    LOG: (_state, _data, next) => {
+      Object.keys(FILTER_LIST).forEach(filter => next('ADD_ROUTE', filter as Filters))
       return 'Starting application...'
     }
   },
@@ -129,13 +136,13 @@ APP.model = {
   // it's a subjective matter whether DOM actions like setting focus or input values are 
   // side-effects that need to be isolated from components, but we are taking the strictest 
   // view here and using a DOMFX driver sink to handle them
-  CLEAR_FORM: { DOMFX: ({ type: 'SET_VALUE', data: { selector: '.new-todo', value: '' } }) },
+  CLEAR_FORM: { DOMFX: () => ({ type: 'SET_VALUE', data: { selector: '.new-todo', value: '' } }) },
 
   // setting a driver sink entry to 'true' sends data from triggering actions directly on
   ADD_ROUTE: { ROUTER: true },
 
   // save the todos to local storage
-  TO_STORE: { STORE: (state, data) => {
+  TO_STORE: { STORE: (state) => {
     // sanitize todo objects
     const todos = state.todos.map(({ id, title, completed }) => ({ id, title, completed }))
     return { key: 'todos', value: todos }
@@ -170,8 +177,10 @@ APP.intent = ({ STATE, DOM, ROUTER, STORE }) => {
     VISIBILITY:      ROUTER,
     FROM_STORE:      store$,
     NEW_TODO:        newTodo$,
-    TOGGLE_ALL:      toggleAll$,
-    CLEAR_COMPLETED: clearCompleted$,
-    TO_STORE:        toStore$,
+    TOGGLE_ALL:      toggleAll$.mapTo(null),
+    CLEAR_COMPLETED: clearCompleted$.mapTo(null),
+    TO_STORE:        toStore$.mapTo(null),
   }
 }
+
+export default APP
