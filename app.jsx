@@ -1,8 +1,9 @@
-import { processForm, classes, xs, delay } from 'sygnal'
-import todo from './components/todos'
+import { ABORT, Collection, classes, persist } from 'sygnal'
+import { router, href } from './lib/router'
+import Todo from './components/todos'
 
 // filter functions for each visibility option
-// - the key names will also get used as names in the UI
+// - the key names match the route names, and also get used as names in the UI
 const FILTER_LIST = {
   all:       todo => true,
   active:    todo => !todo.completed,
@@ -16,18 +17,18 @@ export default function APP ({ state }) {
   const links = Object.keys(FILTER_LIST)
 
   const capitalize = word => word.charAt(0).toUpperCase() + word.slice(1)
-  
-  // this could be a standalone component, but when no state or other component 
+
+  // this could be a standalone component, but when no state or other component
   // functionality is needed then it makes sense to just keep it inline
   // - there is a small performance benefit to keeping it inline, but not enough
   //   to avoid creating components when it makes sense to do so
-  const renderLink = link => <li><a href={ `#/${link}` } className={ classes({ selected: visibility == link }) }>{ capitalize(link) }</a></li>
+  const renderLink = link => <li><a href={ href(link) } className={ classes({ selected: visibility == link }) }>{ capitalize(link) }</a></li>
 
   return (
     <section className="todoapp">
       <header className="header">
         <h1>todos</h1>
-        <form className='new-todo-form'><input className="new-todo" name="new-todo" autofocus autocomplete="off" placeholder="What needs to be done?" /></form>
+        <input className="new-todo" aria-label="New todo" autofocus autocomplete="off" placeholder="What needs to be done?" value={ state.draft } />
       </header>
 
       { (total > 0) &&
@@ -35,9 +36,9 @@ export default function APP ({ state }) {
           <input id="toggle-all" className="toggle-all" type="checkbox" checked={ allDone } />
           <label for="toggle-all">Mark all as complete</label>
           <ul className="todo-list">
-            {/* use Syngal's built-in collection element to create multiple todos from the 'todos' 
+            {/* use Sygnal's built-in Collection element to create multiple todos from the 'todos'
                 array in state and filter the array based on the currently selected visibility */}
-            <collection of={ todo } from="todos" filter={ FILTER_LIST[visibility] } />
+            <Collection of={ Todo } from="todos" filter={ FILTER_LIST[visibility] } />
           </ul>
         </section>
       }
@@ -60,118 +61,86 @@ export default function APP ({ state }) {
 
 
 APP.initialState = {
-  visibility: 'all',
+  // seeding the route lets the very first render show the right filter
+  route: router.current(),
+  draft: '',
   todos: []
 }
+
+// save the todos to local storage after every change, and restore them before the first render
+// - only the todos are kept: the route comes from the URL and the draft is thrown away
+APP.persist = persist({ key: 'todos-sygnal', pick: ['todos'] })
+
+// the ROUTE action fires on start and on every hash change with { name, params, query, hash, path }
+APP.route = 'ROUTE'
 
 // values that can derived from the current state, and are used in multiple places
 // can be added as calculated fields, and will automatically be added wherever state
 // is used in the component. This is useful for reducing redundant code.
 APP.calculated = {
-  total:     (state) => state.todos.length,
-  remaining: (state) => state.todos.filter(todo => !todo.completed).length,
-  completed: (state) => state.todos.filter(todo => todo.completed).length,
-  allDone:   (state) => state.todos.every(todo => todo.completed),
+  visibility: (state) => (state.route.name in FILTER_LIST) ? state.route.name : 'all',
+  total:      (state) => state.todos.length,
+  remaining:  (state) => state.todos.filter(todo => !todo.completed).length,
+  completed:  (state) => state.todos.filter(todo => todo.completed).length,
+  allDone:    (state) => state.todos.every(todo => todo.completed),
 }
 
 APP.model = {
   // the special BOOTSTRAP action is called once when a component is instantiated
   // - this is similar to onMount or useEffect(() => {...}, []) in React
-  BOOTSTRAP: {
-    LOG: (state, data, next) => {
-      Object.keys(FILTER_LIST).forEach(filter => next('ADD_ROUTE', filter))
-      return 'Starting application...'
-    }
+  // - a todo that was being edited when the page was closed comes back out of edit mode
+  BOOTSTRAP: (state) => {
+    if (!state.todos.some(todo => todo.editing)) return ABORT
+    const todos = state.todos.map(({ id, title, completed }) => ({ id, title, completed }))
+    return { ...state, todos }
   },
-  
-  // change which todos are shown based on currently selected option (All, Active, Completed)
-  VISIBILITY: (state, visibility) => ({
-    ...state,
-    visibility,
-  }),
 
-  // add todos fetched from local storage to state
-  FROM_STORE: (state, data) => ({ ...state, todos: data }),
+  // change which todos are shown based on the current route (All, Active, Completed)
+  // - unknown routes get redirected back to the 'all' route
+  ROUTE: {
+    STATE:  (state, route) => ({ ...state, route }),
+    ROUTER: (state, route) => (route.name === 'notFound') ? { to: 'all', replace: true } : ABORT,
+  },
 
-  NEW_TODO: (state, data, next) => {
+  // keep the new todo field's text in state
+  DRAFT: (state, draft) => ({ ...state, draft }),
+
+  NEW_TODO: (state) => {
+    const title = state.draft.trim()
+    if (!title) return ABORT
+
     // calculate next id
     // - must be unique even after a browser page refresh
     // - using timestamp for simplicity, but could be UUID or something else
-    const nextId = Date.now()
-
     const newTodo = {
-      id: nextId,
-      title: data,
+      id: Date.now(),
+      title,
       completed: false
     }
 
-    // send a new action to clear the new todo field
-    next('CLEAR_FORM')
-
-    // add the new todo to the state
+    // add the new todo to the state and clear the new todo field
     return {
       ...state,
+      draft: '',
       todos: [ ...state.todos, newTodo ]
     }
   },
 
   TOGGLE_ALL: (state) => {
-    const allDone = state.todos.every(todo => todo.completed)
-    const todos   = state.todos.map(todo => ({ ...todo, completed: !allDone }))
-    return {...state, todos }
+    const todos = state.todos.map(todo => ({ ...todo, completed: !state.allDone }))
+    return { ...state, todos }
   },
 
   CLEAR_COMPLETED: (state) => {
     const todos = state.todos.filter(todo => !todo.completed)
     return { ...state, todos }
   },
-
-  // it's a subjective matter whether DOM actions like setting focus or input values are 
-  // side-effects that need to be isolated from components, but we are taking the strictest 
-  // view here and using a DOMFX driver sink to handle them
-  CLEAR_FORM: { DOMFX: ({ type: 'SET_VALUE', data: { selector: '.new-todo', value: '' } }) },
-
-  // setting a driver sink entry to 'true' sends data from triggering actions directly on
-  ADD_ROUTE: { ROUTER: true },
-
-  // save the todos to local storage
-  TO_STORE: { STORE: (state, data) => {
-    // sanitize todo objects
-    const todos = state.todos.map(({ id, title, completed }) => ({ id, title, completed }))
-    return { key: 'todos', value: todos }
-  } },
 }
 
-APP.intent = ({ STATE, DOM, ROUTER, STORE }) => {
-
-  // fetch stored todos from local storage
-  // - init to an empty array if no todos were found
-  const store$           = STORE.get('todos', [])
-
-  const toggleAll$       = DOM.select('.toggle-all').events('click')
-  const clearCompleted$  = DOM.select('.clear-completed').events('click')
-
-  // get the form containing the new todo input
-  const newTodoForm      = DOM.select('.new-todo-form')
-
-  // use Sygnal's processForm() helper to grab 'submit' events (user hits enter)
-  // extract the new todo's title from the form values, and trim any white space
-  // filter out blank titles
-  const newTodo$ = processForm(newTodoForm, { events: 'submit' })
-    .map(values => values['new-todo'].trim())
-    .filter(title => title !== '')
-
-  // save todos to localStorage whenever the app state changes
-  // - ignore the first two state events to prevent storing the initialization data
-  const toStore$ = STATE.stream.drop(2)
-
-  return {
-    // the ROUTER source fires whenever the hash changes, and returns the new hash
-    VISIBILITY:      ROUTER,
-    FROM_STORE:      store$,
-    NEW_TODO:        newTodo$,
-    TOGGLE_ALL:      toggleAll$,
-    CLEAR_COMPLETED: clearCompleted$,
-    TO_STORE:        toStore$,
-  }
-}
+APP.intent = ({ DOM }) => ({
+  // the new todo field is a controlled input, and hitting enter adds the todo
+  DRAFT:           DOM.input('.new-todo').value(),
+  NEW_TODO:        DOM.keydown('.new-todo').key().filter(key => key === 'Enter'),
+  TOGGLE_ALL:      DOM.click('.toggle-all'),
+  CLEAR_COMPLETED: DOM.click('.clear-completed'),
+})

@@ -1,11 +1,10 @@
-import { classes, xs, sampleCombine } from 'sygnal'
-import { inputEvents } from '../lib/utils'
+import { ABORT, classes, xs } from 'sygnal'
 
 
 export default function TODO({ state }) {
-  const { id, completed, editing, title } = state
+  const { completed, editing, editText, title } = state
   // calculate class for todo
-  const classNames = classes('todo', 'todo-' + id, { completed, editing })
+  const classNames = classes('todo', { completed, editing })
 
   // is the todo completed?
   const checked = !!completed
@@ -13,83 +12,66 @@ export default function TODO({ state }) {
   return (
     <li className={ classNames }>
       <div className="view">
-        <input className="toggle" type="checkbox" checked={ checked } />
+        <input className="toggle" type="checkbox" aria-label="Toggle todo" checked={ checked } />
         <label>{ title }</label>
-        <button className="destroy" />
+        <button className="destroy" aria-label="Delete todo" />
       </div>
-      <input className="edit" type="text" value={ title } />
+      {/* the edit field only exists while editing, so it always starts from the current title */}
+      { editing && <input className="edit" type="text" aria-label="Edit todo" value={ editText } /> }
     </li>
   )
-}
-
-TODO.calculated = {
-  inputSelector: (state) => `.todo-${ state.id } .edit`
 }
 
 TODO.model = {
 
   TOGGLE:     (state) => ({ ...state, completed: !state.completed }),
-  
+
   // for components used in a Sygnal collection element, setting the state
   // to undefined will delete that instance of the component and remove it
   // from the array in state that the collection is based on
   DESTROY:    (state) => undefined,
 
-  EDIT_START: (state, data, next) => {
-    const selector = state.inputSelector
-    // update the value of the input field to the current todo title
-    next('SET_EDIT_VALUE',   { selector, value: state.title })
-    // set focus on the input field
-    next('FOCUS_EDIT_FIELD', { selector }, 100)
-    // mark the todo as being edited and save the current title in case the edit is cancelled
-    return { ...state, editing: true, cachedTitle: state.title }
+  EDIT_START: {
+    // mark the todo as being edited and start the edit field from the current title
+    STATE:   (state) => ({ ...state, editing: true, editText: state.title }),
+    // focus the edit field once it has rendered
+    // - ELEMENT is Sygnal's built-in sink for calling methods like focus() on this component's own elements
+    ELEMENT: { focus: '.edit' },
   },
 
-  EDIT_DONE: (state, data) => {
+  // keep the edit field's text in state while typing
+  EDIT_INPUT: (state, editText) => ({ ...state, editText }),
+
+  EDIT_DONE: (state) => {
     // if the todo is not being edited then don't change
-    if (state.editing === false) return state
-    // update the todo's title, remove the editing flag, and delete the cached title
-    return { ...state, title: data, editing: false, cachedTitle: '' }
+    // - removing the field after enter or escape can also blur it, which lands here a second time
+    if (!state.editing) return ABORT
+    const title = state.editText.trim()
+    // saving an empty title deletes the todo
+    if (!title) return undefined
+    // update the todo's title and leave edit mode
+    return { ...state, title, editing: false, editText: '' }
   },
 
-  EDIT_CANCEL: (state, data, next) => {
-    const selector = state.inputSelector
-    // set the value of the edit input field back to the original title
-    next('SET_EDIT_VALUE', { selector, value: state.cachedTitle })
-    // set the todo back to the pre-edit value and remove the editing flag
-    return { ...state, title: state.cachedTitle, editing: false, cachedTitle: '' }
+  // throw away the edit and go back to the original title
+  EDIT_CANCEL: (state) => {
+    if (!state.editing) return ABORT
+    return { ...state, editing: false, editText: '' }
   },
-
-  // it's a subjective matter whether DOM actions like setting focus or input values are 
-  // side-effects that need to be isolated from components, but we are taking the strictest 
-  // view here and using a DOMFX driver sink to handle them
-  SET_EDIT_VALUE:   { DOMFX: (state, data) => ({ type: 'SET_VALUE', data }) },
-  FOCUS_EDIT_FIELD: { DOMFX: (state, data) => ({ type: 'FOCUS', data }) },
 
 }
 
 TODO.intent = ({ DOM }) => {
-  // collect DOM events and elements
-  const toggle$   = DOM.select('.toggle').events('click')
-  const label$    = DOM.select('.todo label').events('dblclick')
-  const destroy$  = DOM.select('.destroy').events('click')
-  const input$    = DOM.select('.edit')
-
-  // get events from the input field
-  //  - the inputEvents helper returns common events and automatically returns the current value
-  const { value$, enter$, escape$, blur$ } = inputEvents(input$)
-
-  // map submitted edits to the new title
-  const doneEditing$ = xs.merge(enter$, blur$)
-                         .compose(sampleCombine(value$))
-                         .map(([_, title]) => title)
-
+  // the keys pressed in the edit field
+  const editKey$ = DOM.keydown('.edit').key()
 
   return {
-    TOGGLE:      toggle$,
-    DESTROY:     destroy$,
-    EDIT_START:  label$,
-    EDIT_DONE:   doneEditing$,
-    EDIT_CANCEL: escape$,
+    TOGGLE:      DOM.click('.toggle'),
+    DESTROY:     DOM.click('.destroy'),
+    EDIT_START:  DOM.dblclick('label'),
+    EDIT_INPUT:  DOM.input('.edit').value(),
+    // hitting enter or leaving the field saves the edit
+    EDIT_DONE:   xs.merge(editKey$.filter(key => key === 'Enter'), DOM.blur('.edit')),
+    EDIT_CANCEL: editKey$.filter(key => key === 'Escape'),
   }
 }

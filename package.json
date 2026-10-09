@@ -4,15 +4,15 @@
   "version": "0.1.0",
   "private": true,
   "devDependencies": {
-    "gh-pages": "^6.1.1",
-    "typescript": "^5.4.5",
-    "vite": "^5.2.12"
+    "gh-pages": "^6.3.0",
+    "sygnal-check": "^0.2.0",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.3"
   },
   "dependencies": {
-    "@cycle/run": "^5.7.0",
-    "director": "^1.2.8",
-    "sygnal": "^3.0.1",
-    "todomvc-app-css": "^2.2.0",
+    "sygnal": "^6.0.0",
+    "todomvc-app-css": "^2.4.3",
     "todomvc-common": "^1.0.5"
   },
   "scripts": {
@@ -20,6 +20,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "gh-pages": "gh-pages -d dist -b gh-pages",
-    "deploy": "npm run build && npm run gh-pages"
+    "deploy": "npm run build && npm run gh-pages",
+    "test": "vitest run",
+    "check": "sygnal-check app.jsx components --strict"
   }
 }

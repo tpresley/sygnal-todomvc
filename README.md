@@ -25,6 +25,16 @@ Run a live dev server with hot reloading using Vite
 npm run dev
 ```
 
+Run the tests
+```bash
+npm test
+```
+
+Check the components against Sygnal's canonical forms with sygnal-check
+```bash
+npm run check
+```
+
 Build a compiled and distributable version
 ```bash
 npm run build
